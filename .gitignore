@@ -30,6 +30,8 @@ Thumbs.db
 # Runtime data
 data/*.db
 data/*.pkl
+data/traces/
+data/output/
 data/skill_artifacts/*
 !data/skill_artifacts/.gitkeep
 
