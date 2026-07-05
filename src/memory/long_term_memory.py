@@ -16,8 +16,14 @@ from pathlib import Path
 from datetime import datetime
 from typing import List, Dict, Optional, Tuple
 
-import psycopg2
-import psycopg2.extras
+try:
+    import psycopg2
+    import psycopg2.extras
+    HAS_PG = True
+except ImportError:
+    psycopg2 = None
+    HAS_PG = False
+
 import numpy as np
 
 from config.settings import PostgresConfig, EmbeddingConfig, RetrievalConfig
@@ -45,6 +51,8 @@ class LongTermMemory:
     # === Postgres + pgvector ===
 
     def _get_conn(self):
+        if not HAS_PG:
+            raise RuntimeError("psycopg2 未安装")
         return psycopg2.connect(
             host=self.pg_config.host, port=self.pg_config.port,
             database=self.pg_config.database,
@@ -290,7 +298,7 @@ class LongTermMemory:
 
         lines = ["## 相关历史记忆"]
         for r in results[:self.retrieval_config.rerank_top_k]:
-            relevance = "🟢" if r["score"] > 0.8 else "🟡" if r["score"] > 0.5 else "🔵"
+            relevance = "" if r["score"] > 0.8 else "" if r["score"] > 0.5 else ""
             lines.append(f"{relevance} [{r['type']}] {r['content'][:300]}")
 
         return "\n".join(lines)

@@ -135,7 +135,7 @@ class MyClawAgent(Agent):
         4. 标准 ReAct 循环（继承 HelloAgents）
         """
         print(f"\n{'='*60}")
-        print(f"🤖 {self.name} 开始处理: {input_text[:80]}")
+        print(f"[ClawCore] {self.name} 开始处理: {input_text[:80]}")
         print(f"{'='*60}")
 
         start_time = datetime.now()
@@ -145,7 +145,7 @@ class MyClawAgent(Agent):
         if self.memory_manager:
             memory_context = self.memory_manager.retrieve(input_text)
             if memory_context:
-                print(f"🧠 检索到相关记忆 ({len(memory_context)} 字符)")
+                print(f"[*] 检索到相关记忆 ({len(memory_context)} 字符)")
 
         # Phase 4: Skill 渐进式披露
         skills_prompt = ""
@@ -153,7 +153,7 @@ class MyClawAgent(Agent):
             skills_prompt = self.skill_manager.get_skills_prompt(input_text)
             if skills_prompt:
                 skill_count = len(self.skill_manager.list_skills())
-                print(f"📚 可用技能: {skill_count} 个")
+                print(f"[Skill] 可用技能: {skill_count} 个")
 
         # 构建消息列表
         messages = self._build_messages(input_text, memory_context, skills_prompt)
@@ -177,14 +177,14 @@ class MyClawAgent(Agent):
                     **kwargs,
                 )
             except Exception as e:
-                print(f"❌ LLM 调用失败: {e}")
+                print(f"[ERR] LLM 调用失败: {e}")
                 break
 
             # 没有工具调用 → 返回答案
             tool_calls = response.tool_calls
             if not tool_calls:
                 final_answer = response.content or "抱歉，我无法回答这个问题。"
-                print(f"💬 {final_answer[:100]}...")
+                print(f" {final_answer[:100]}...")
                 break
 
             # 将助手消息加入历史
@@ -216,11 +216,11 @@ class MyClawAgent(Agent):
                     })
                     continue
 
-                print(f"🔧 {tool_name}({arguments})")
+                print(f">> {tool_name}({arguments})")
 
                 result = self._execute_tool_call(tool_name, arguments)
 
-                if result.startswith("❌"):
+                if result.startswith("[ERR]"):
                     print(f"  {result}")
                 else:
                     preview = result[:150].replace('\n', ' ')
@@ -251,7 +251,7 @@ class MyClawAgent(Agent):
 
         duration = (datetime.now() - start_time).total_seconds()
         print(f"\n{'='*60}")
-        print(f"✅ 完成 ({current_step} 步, {duration:.1f}秒)")
+        print(f"[OK] 完成 ({current_step} 步, {duration:.1f}秒)")
         print(f"{'='*60}")
 
         return final_answer

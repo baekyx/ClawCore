@@ -32,8 +32,8 @@ class FinishTool(Tool):
 
         parts = []
         if summary:
-            parts.append(f"📋 摘要: {summary}")
-        parts.append(f"✅ 答案: {answer}")
+            parts.append(f" 摘要: {summary}")
+        parts.append(f" 答案: {answer}")
 
         return ToolResponse.success(
             text="\n".join(parts),

@@ -66,15 +66,15 @@ class TaskManagerTool(Tool):
 
         if action == "clear":
             self.current_todos = TodoList()
-            return ToolResponse.success(text="✅ 任务列表已清空")
+            return ToolResponse.success(text=" 任务列表已清空")
 
         if action == "status":
             stats = self.current_todos.get_stats()
             if stats["total"] == 0:
-                return ToolResponse.success(text="📋 暂无任务", data=stats)
-            lines = [f"📋 [{stats['completed']}/{stats['total']}]"]
+                return ToolResponse.success(text=" 暂无任务", data=stats)
+            lines = [f" [{stats['completed']}/{stats['total']}]"]
             for t in self.current_todos.todos:
-                icon = {"pending": "⏳", "in_progress": "🔄", "completed": "✅"}.get(t.status, "❓")
+                icon = {"pending": "⏳", "in_progress": "", "completed": ""}.get(t.status, "")
                 lines.append(f"  {icon} {t.content}")
             return ToolResponse.success(text="\n".join(lines), data=stats)
 
@@ -104,5 +104,5 @@ class TaskManagerTool(Tool):
         )
 
         stats = self.current_todos.get_stats()
-        recap = f"📋 [{stats['completed']}/{stats['total']}] 任务已更新"
+        recap = f" [{stats['completed']}/{stats['total']}] 任务已更新"
         return ToolResponse.success(text=recap, data=stats)

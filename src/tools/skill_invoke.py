@@ -68,8 +68,8 @@ class SkillInvokeTool(Tool):
 {body}
 </skill>
 
-✅ 技能已加载: {skill.name}
-📝 {skill.description}
+ 技能已加载: {skill.name}
+ {skill.description}
 
 请严格遵循上述技能说明来完成任务。"""
 

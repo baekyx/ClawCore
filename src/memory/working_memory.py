@@ -13,8 +13,13 @@ from datetime import datetime
 from typing import List, Dict, Optional, Any
 from dataclasses import dataclass, field
 
-import psycopg2
-import psycopg2.extras
+try:
+    import psycopg2
+    import psycopg2.extras
+    HAS_PG = True
+except ImportError:
+    psycopg2 = None
+    HAS_PG = False
 
 from config.settings import PostgresConfig
 
@@ -39,6 +44,8 @@ class WorkingMemory:
         self._init_db()
 
     def _get_conn(self):
+        if not HAS_PG:
+            raise RuntimeError("psycopg2 未安装")
         return psycopg2.connect(
             host=self.config.host, port=self.config.port,
             database=self.config.database,

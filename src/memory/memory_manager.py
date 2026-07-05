@@ -28,7 +28,7 @@ class MemoryManager:
         try:
             self.working = WorkingMemory(self.config.postgres)
         except Exception as e:
-            print(f"[Memory] ⚠ 工作记忆(Postgres)不可用: {e}")
+            print(f"[Memory]  工作记忆(Postgres)不可用: {e}")
             self.working = None
 
         # Layer 3: 长期记忆 (Postgres pgvector)
@@ -37,7 +37,7 @@ class MemoryManager:
                 self.config.postgres, self.config.embedding, self.config.retrieval
             )
         except Exception as e:
-            print(f"[Memory] ⚠ 长期记忆(pgvector)不可用: {e}")
+            print(f"[Memory]  长期记忆(pgvector)不可用: {e}")
             self.long_term = None
 
     # === 检索 ===
