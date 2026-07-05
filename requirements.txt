@@ -1,0 +1,38 @@
+# LLM
+openai>=1.50.0
+tiktoken>=0.7.0
+
+# Agent (复用 HelloAgents 核心)
+# 开发阶段直接引用本地 HelloAgents
+
+# Postgres
+psycopg2-binary>=2.9.0
+pgvector>=0.3.0
+
+# Embedding
+sentence-transformers>=3.0.0
+torch>=2.0.0
+
+# 检索
+rank-bm25>=0.2.2
+jieba>=0.42.1
+
+# 工具依赖
+requests>=2.31.0
+httpx>=0.27.0
+beautifulsoup4>=4.12.0
+duckduckgo-search>=6.0.0
+
+# 基础设施
+python-dotenv>=1.0.0
+pydantic>=2.0.0
+pydantic-settings>=2.0.0
+tenacity>=9.0.0
+
+# CLI
+typer>=0.12.0
+rich>=13.0.0
+
+# 测试
+pytest>=8.0.0
+pytest-asyncio>=0.24.0
