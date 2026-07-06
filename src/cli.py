@@ -91,13 +91,17 @@ def _run_single_stream(agent: ClawCoreAgent, query: str):
     """单次流式问答"""
     try:
         for event in agent.run_stream(query):
-            if event.type.value == "llm_chunk":
+            etype = event.type.value
+            if etype == "llm_chunk":
                 print(event.data.get("chunk", ""), end="", flush=True)
-            elif event.type.value == "tool_call_finish":
+            elif etype == "tool_call_start":
                 tn = event.data.get("tool_name", "")
-                print(f"\n[>> {tn}]", end="", flush=True)
-            elif event.type.value == "error":
-                print(f"\n[ERR] {event.data.get('error', '')}")
+                print(f"\n[>> 调用 {tn}...]", flush=True)
+            elif etype == "tool_call_finish":
+                r = event.data.get("result", "")[:120]
+                print(f"[完成] {r}", flush=True)
+            elif etype == "error":
+                print(f"\n[ERR] {event.data.get('error', '')}", flush=True)
         print()
     except KeyboardInterrupt:
         print("\n[yellow]中断[/yellow]")

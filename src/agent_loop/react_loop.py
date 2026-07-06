@@ -319,11 +319,14 @@ class ClawCoreAgent(Agent):
                 except Exception:
                     full_text = response.content or "无法回答"
                     yield StreamEvent.create(StreamEventType.LLM_CHUNK, self.name, chunk=full_text)
-
                 final_answer = full_text
                 break
 
-            # 有工具调用 → 执行工具
+            # 有工具调用 → 先输出 LLM 的思考文字，再执行工具
+            if response.content:
+                yield StreamEvent.create(StreamEventType.LLM_CHUNK, self.name,
+                    chunk=response.content + "\n")
+
             messages.append({
                 "role": "assistant", "content": response.content,
                 "tool_calls": [{"id": tc.id, "type": "function",
@@ -335,6 +338,9 @@ class ClawCoreAgent(Agent):
                     arguments = json.loads(tc.arguments)
                 except json.JSONDecodeError:
                     continue
+
+                yield StreamEvent.create(StreamEventType.TOOL_CALL_START, self.name,
+                    tool_name=tc.name, args=_safe(str(arguments)[:80]))
 
                 try:
                     result = self._execute_tool_call(tc.name, arguments)

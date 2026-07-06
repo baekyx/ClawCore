@@ -1,5 +1,5 @@
 """
-工具6: 网页抓取工具
+工具6: 网页抓取 — 带UA/超时/重试
 """
 
 from typing import Dict, Any, List
@@ -11,18 +11,19 @@ from hello_agents.tools.errors import ToolErrorCode
 
 
 class WebFetchTool(Tool):
-    """网页内容抓取 — 获取网页文本内容"""
+    """网页内容抓取"""
 
     def __init__(self):
         super().__init__(
             name="web_fetch",
-            description="抓取指定 URL 的网页内容，提取纯文本。适合阅读文章、文档等。",
+            description="抓取指定URL的网页内容，提取纯文本。适合抓取新闻文章、文档等。提示：抓取新闻站首页来获取最新文章列表。",
         )
 
     def get_parameters(self) -> List[ToolParameter]:
         return [
             ToolParameter(name="url", type="string",
-                          description="要抓取的网页 URL", required=True),
+                          description="要抓取的URL。新闻类可抓 news.google.com 或具体新闻站",
+                          required=True),
             ToolParameter(name="max_chars", type="integer",
                           description="最大返回字符数", required=False, default=5000),
         ]
@@ -31,51 +32,56 @@ class WebFetchTool(Tool):
         url = parameters.get("url", "")
         max_chars = min(parameters.get("max_chars", 5000), 20000)
 
-        try:
-            with httpx.Client(timeout=15, follow_redirects=True) as client:
-                resp = client.get(url, headers={
-                    "User-Agent": "Mozilla/5.0 (compatible; ClawCore/1.0)"
-                })
-                resp.raise_for_status()
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
+        }
 
-            # 简单提取文本
-            html = resp.text
-
-            # 尝试用 BeautifulSoup 提取纯文本
+        for attempt in range(3):
             try:
-                from bs4 import BeautifulSoup
-                soup = BeautifulSoup(html, 'html.parser')
-                # 移除 script/style
-                for tag in soup(['script', 'style', 'nav', 'footer', 'header']):
-                    tag.decompose()
-                text = soup.get_text(separator='\n', strip=True)
-            except ImportError:
-                # 降级：简单去掉 HTML 标签
-                import re
-                text = re.sub(r'<[^>]+>', ' ', html)
-                text = re.sub(r'\s+', ' ', text)
+                with httpx.Client(timeout=15, follow_redirects=True, headers=headers) as client:
+                    resp = client.get(url)
+                    resp.raise_for_status()
 
-            # 截断
-            if len(text) > max_chars:
-                text = text[:max_chars] + f"\n\n... (已截断，原文共 {len(text)} 字符)"
+                html = resp.text
 
-            return ToolResponse.success(
-                text=f"抓取 {url}:\n\n{text[:3000]}",
-                data={"url": url, "content": text, "status_code": resp.status_code}
-            )
+                # 提取纯文本
+                try:
+                    from bs4 import BeautifulSoup
+                    soup = BeautifulSoup(html, 'html.parser')
+                    for tag in soup(['script', 'style', 'nav', 'footer', 'header', 'aside']):
+                        tag.decompose()
+                    text = soup.get_text(separator='\n', strip=True)
+                except ImportError:
+                    import re
+                    text = re.sub(r'<[^>]+>', ' ', html)
+                    text = re.sub(r'\s+', ' ', text).strip()
 
-        except httpx.HTTPStatusError as e:
-            return ToolResponse.error(
-                code=ToolErrorCode.EXECUTION_ERROR,
-                message=f"HTTP {e.response.status_code}: {url}"
-            )
-        except httpx.TimeoutException:
-            return ToolResponse.error(
-                code=ToolErrorCode.EXECUTION_ERROR,
-                message=f"请求超时: {url}"
-            )
-        except Exception as e:
-            return ToolResponse.error(
-                code=ToolErrorCode.EXECUTION_ERROR,
-                message=f"抓取失败: {e}"
-            )
+                # 去空行
+                lines = [l.strip() for l in text.split('\n') if l.strip()]
+                text = '\n'.join(lines)
+
+                if len(text) > max_chars:
+                    text = text[:max_chars] + f"\n\n... (已截断，原文 {len(lines)} 行)"
+
+                return ToolResponse.success(
+                    text=f"{url}\n\n{text[:3000]}",
+                    data={"url": url, "content": text, "status": resp.status_code}
+                )
+
+            except httpx.HTTPStatusError as e:
+                if attempt < 2:
+                    continue
+                return ToolResponse.error(code=ToolErrorCode.EXECUTION_ERROR,
+                    message=f"HTTP {e.response.status_code}")
+            except httpx.TimeoutException:
+                if attempt < 2:
+                    continue
+                return ToolResponse.error(code=ToolErrorCode.EXECUTION_ERROR,
+                    message="请求超时")
+            except Exception as e:
+                if attempt < 2:
+                    continue
+                return ToolResponse.error(code=ToolErrorCode.EXECUTION_ERROR,
+                    message=f"抓取失败: {e}")
