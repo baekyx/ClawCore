@@ -175,30 +175,80 @@ def run_compression_benchmark():
 # ═══════════════════════════════════════════
 
 E2E_TESTS = [
-    {"query": "1+2*3等于几", "expected": ["7"]},
-    {"query": "sqrt(144)是多少", "expected": ["12"]},
-    {"query": "hello的英文是什么意思", "expected": ["你好", "您好"]},
-    {"query": "中国首都是哪个城市", "expected": ["北京"]},
-    {"query": "水的化学式是什么", "expected": ["H2O", "H₂O"]},
-    {"query": "2024年奥运会在哪个城市举办", "expected": ["巴黎", "Paris"]},
+    # Tier 1: 简单知识
+    {"query": "1+2*3等于几", "expected": ["7"], "tier": 1, "category": "算术"},
+    {"query": "中国首都是哪个城市", "expected": ["北京"], "tier": 1, "category": "常识"},
+
+    # Tier 2: 需要工具
+    {"query": "sqrt(144)是多少", "expected": ["12"], "tier": 2, "category": "工具-计算"},
+    {"query": "帮我算一下 15*8+12/3", "expected": ["124"], "tier": 2, "category": "工具-计算"},
+    {"query": "搜索并告诉我Python最新版本是什么", "expected": ["Python", "3."], "tier": 2, "category": "工具-搜索"},
+
+    # Tier 3: 多步推理+记忆
+    {"query": "你还记得我叫什么名字吗", "expected": ["张三", "名字", "没有告诉"], "tier": 3, "category": "记忆召回"},
+    {"query": "我之前和你说过我住在哪里", "expected": ["北京", "没有说"], "tier": 3, "category": "记忆召回"},
+
+    # Tier 4: 复杂推理
+    {"query": "已知函数f(x)=x²-4x+3, x∈[0,5]，求最大值和最小值", "expected": ["3", "-1", "8"], "tier": 4, "category": "数学推理"},
+    {"query": "一个班级有40人，男生比女生多4人，男生多少人", "expected": ["22"], "tier": 4, "category": "数学推理"},
+
+    # Tier 5: 综合能力
+    {"query": "分析sample_notes.txt这个文件讲了什么内容", "expected": ["AI", "Agent", "发展"], "tier": 5, "category": "文件+理解"},
+    {"query": "2026年AI Agent发展的三个方向是什么", "expected": ["多Agent", "记忆", "工具"], "tier": 5, "category": "综合"},
+
+    # Edge: 错误处理
+    {"query": "帮我读取一个不存在的文件 /nonexistent.txt", "expected": [], "tier": "edge", "category": "错误处理"},
+    {"query": "3/0等于多少", "expected": ["不能", "错误", "0不能"], "tier": "edge", "category": "错误处理"},
 ]
 
 
 def run_e2e_benchmark(agent):
-    print("\n=== Part C: End-to-End Accuracy ===")
+    print("\n=== Part C: End-to-End Accuracy ===\n")
+
+    by_tier = {}
     correct = 0
     total = len(E2E_TESTS)
 
     for t in E2E_TESTS:
-        result = agent.run(t["query"])
-        passed = any(exp in result for exp in t["expected"])
-        status = "PASS" if passed else "FAIL"
+        try:
+            result = agent.run(t["query"])
+        except Exception as e:
+            result = str(e)
+
+        tier = str(t["tier"])
+        if tier not in by_tier:
+            by_tier[tier] = {"total": 0, "correct": 0}
+
+        by_tier[tier]["total"] += 1
+
+        # Edge 用例：期望失败/拒绝的响应
+        if t.get("category") == "错误处理":
+            passed = (
+                "错误" in result or "[ERR]" in result or
+                "不存在" in result or "不能" in result
+            )
+        else:
+            passed = any(exp in result for exp in t["expected"])
+
         if passed:
             correct += 1
-        print(f"  [{status}] {t['query']:>25s}  expected={t['expected']}  got={result[:40]}...")
+            by_tier[tier]["correct"] += 1
+
+        status = "PASS" if passed else "FAIL"
+        print(f"  [{status}] T{t['tier']:>4s} {t['category']:>8s} | "
+              f"{t['query'][:45]:>45s} | {result[:50]}...")
+
+    # 按难度统计
+    print(f"\n  {'Tier':<8s} {'Category':<12s} {'准确率'}")
+    print(f"  {'-'*35}")
+    for tier in sorted(by_tier.keys()):
+        d = by_tier[tier]
+        pct = d["correct"] / d["total"] * 100
+        tier_name = {"1":"基础","2":"工具","3":"记忆","4":"推理","5":"综合","edge":"容错"}.get(tier, tier)
+        print(f"  T{tier:<7s} {tier_name:<12s} {d['correct']}/{d['total']} ({pct:.0f}%)")
 
     acc = correct / total * 100
-    print(f"\n  Accuracy: {correct}/{total} ({acc:.0f}%)")
+    print(f"\n  Total: {correct}/{total} ({acc:.0f}%)")
     return acc
 
 
