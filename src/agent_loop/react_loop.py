@@ -222,6 +222,13 @@ class ClawCoreAgent(Agent):
                 tool_name = tool_call.name
                 tool_call_id = tool_call.id
 
+                # 步骤超时 → 剩余工具发超时消息后 continue
+                if (datetime.now() - step_start).total_seconds() > 30:
+                    print(f"[!] 步骤超时, 标记跳过")
+                    messages.append({"role": "tool", "tool_call_id": tool_call_id,
+                        "content": "[ERR] 步骤超时(>30s), 工具未执行"})
+                    continue
+
                 try:
                     arguments = json.loads(tool_call.arguments)
                 except json.JSONDecodeError as e:
@@ -340,16 +347,20 @@ class ClawCoreAgent(Agent):
             })
 
             for tc in tool_calls:
-                # 单步超时检查（30秒）
+                # 单步超时 → 给剩余tool_call发超时消息
                 elapsed = (datetime.now() - step_start).total_seconds()
                 if elapsed > 30:
                     yield StreamEvent.create(StreamEventType.LLM_CHUNK, self.name,
-                        chunk=f"\n[!] 步骤超时({elapsed:.0f}s), 跳过剩余工具\n")
-                    break
+                        chunk=f"\n[!] 步骤超时({elapsed:.0f}s)\n")
+                    messages.append({"role": "tool", "tool_call_id": tc.id,
+                        "content": f"[ERR] 步骤超时({elapsed:.0f}s), 工具未执行"})
+                    continue
 
                 try:
                     arguments = json.loads(tc.arguments)
                 except json.JSONDecodeError:
+                    messages.append({"role": "tool", "tool_call_id": tc.id,
+                        "content": f"[ERR] 参数JSON格式错误"})
                     continue
 
                 yield StreamEvent.create(StreamEventType.TOOL_CALL_START, self.name,
