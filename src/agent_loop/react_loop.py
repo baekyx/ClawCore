@@ -122,17 +122,6 @@ class ClawCoreAgent(Agent):
         self._tool_call_limits = {"web_search": 3, "web_fetch": 5}
         self._tool_call_count = {}
 
-    def _check_tool_limit(self, tool_name: str) -> str:
-        """检查工具调用上限，返回空字符串表示放行，否则返回拒绝原因"""
-        limit = self._tool_call_limits.get(tool_name)
-        if limit is None:
-            return ""
-        count = self._tool_call_count.get(tool_name, 0)
-        if count >= limit:
-            return f"[ERR] {tool_name} 已达上限({limit}次), 请基于已有信息回答"
-        self._tool_call_count[tool_name] = count + 1
-        return ""
-
         # Phase 2: 多层记忆管理器
         self.memory_manager = memory_manager
 
@@ -145,6 +134,16 @@ class ClawCoreAgent(Agent):
         if skill_manager is None:
             skill_manager = SkillManager(self.clawcore_config.skill, llm)
         self.skill_manager = skill_manager
+
+    def _check_tool_limit(self, tool_name: str) -> str:
+        limit = self._tool_call_limits.get(tool_name)
+        if limit is None:
+            return ""
+        count = self._tool_call_count.get(tool_name, 0)
+        if count >= limit:
+            return f"[ERR] {tool_name} 已达上限({limit}次), 请基于已有信息回答"
+        self._tool_call_count[tool_name] = count + 1
+        return ""
 
     def _build_helloagents_config(self):
         """将 ClawCoreConfig 转为 HelloAgents Config"""
