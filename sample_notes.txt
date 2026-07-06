@@ -1,0 +1,17 @@
+2026年7月 AI Agent 发展观察
+
+本周主要关注了三个方向：
+
+1. 多Agent协作
+多个Agent通过消息传递进行任务分解和协作，LangGraph和HelloAgents都支持了这一模式。
+关键进展是Agent间可以共享记忆，不再各自为战。
+
+2. 记忆系统演进
+从简单的对话历史到三层记忆架构（会话+工作+长期），Agent的"记忆力"显著提升。
+BGE-M3等本地向量模型的出现使得向量检索不再依赖OpenAI。
+
+3. 工具调用标准化
+OpenAI的Function Calling已成为事实标准，Anthropic和Google也都提供了兼容接口。
+熔断器和超时机制正在成为Agent框架的标配。
+
+下一步计划测试ClawCore的Skill自进化系统在实际业务中的表现。
