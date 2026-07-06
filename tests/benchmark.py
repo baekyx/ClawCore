@@ -198,7 +198,7 @@ E2E_TESTS = [
 
     # Edge: 错误处理
     {"query": "帮我读取一个不存在的文件 /nonexistent.txt", "expected": [], "tier": "edge", "category": "错误处理"},
-    {"query": "3/0等于多少", "expected": ["不能", "错误", "0不能"], "tier": "edge", "category": "错误处理"},
+    {"query": "3/0等于多少", "expected": ["没有意义", "未定义", "不能"], "tier": "edge", "category": "错误处理"},
 ]
 
 
