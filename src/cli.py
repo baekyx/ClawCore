@@ -9,7 +9,6 @@ if str(PROJECT_ROOT) not in sys.path:
 
 import typer
 from rich.console import Console
-from rich.markdown import Markdown
 
 from src.agent_loop.react_loop import MyClawAgent
 from src.tools import create_default_registry
@@ -51,7 +50,7 @@ def chat(
     console.print(f"[dim]技能: {len(skill.list_skills())} 个[/dim]")
 
     # 创建 Agent
-    registry = create_default_registry(skill_manager=skill)
+    registry = create_default_registry(skill_manager=skill, memory_manager=memory)
     agent = MyClawAgent(
         name="ClawCore",
         llm=llm,
@@ -77,7 +76,7 @@ def _run_single(agent: MyClawAgent, query: str):
         result = agent.run(query)
         console.print()
         console.print("[bold green]=== 回答 ===[/bold green]")
-        console.print(Markdown(result))
+        print(result)
     except KeyboardInterrupt:
         console.print("\n[yellow]用户中断[/yellow]")
     except Exception as e:
@@ -108,7 +107,7 @@ def _run_interactive(agent: MyClawAgent):
             result = agent.run(user_input)
             console.print()
             console.print("[bold green]ClawCore:[/bold green]")
-            console.print(Markdown(result))
+            print(result)
             console.print()
         except KeyboardInterrupt:
             console.print("\n[yellow]中断，输入新问题继续[/yellow]")

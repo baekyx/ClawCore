@@ -46,14 +46,13 @@ class MemoryManager:
         """检索与 query 相关的记忆，返回可注入 LLM 的文本"""
         parts = []
 
-        # Layer 2: 工作记忆中的用户画像 + 任务
+        # Layer 2: 工作记忆中的用户画像
         if self.working:
-            profile = self.working.get_user_profile()
-            if profile:
-                parts.append(profile)
-            tasks = self.working.get_pending_tasks()
-            if tasks:
-                parts.append(tasks)
+            items = self.working.search(namespace="User")
+            if items:
+                parts.append("## 用户信息\n" + "\n".join(
+                    f"- {i['title']}: {i['content'][:200]}" for i in items
+                ))
 
         # Layer 3: 长期记忆混合检索
         if self.long_term and self.long_term.count() > 0:
