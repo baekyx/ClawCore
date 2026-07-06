@@ -177,6 +177,7 @@ class ClawCoreAgent(Agent):
         # === ReAct 主循环 ===
         while current_step < self.max_steps:
             current_step += 1
+            step_start = datetime.now()
             print(f"\n--- 第 {current_step}/{self.max_steps} 步 ---")
 
             try:
@@ -231,8 +232,12 @@ class ClawCoreAgent(Agent):
 
                 print(f">> {tool_name}({_safe(str(arguments))[:80]})")
 
+                tool_start = datetime.now()
                 try:
                     result = self._execute_tool_call(tool_name, arguments)
+                    tool_elapsed = (datetime.now() - tool_start).total_seconds()
+                    if tool_elapsed > 30:
+                        print(f"  [!] {tool_name} 耗时 {tool_elapsed:.0f}s")
                 except Exception as e:
                     result = f"[ERR] 工具执行异常: {e}"
                     if self.trace_logger:
@@ -298,6 +303,7 @@ class ClawCoreAgent(Agent):
 
         while step < self.max_steps:
             step += 1
+            step_start = datetime.now()
             yield StreamEvent.create(StreamEventType.STEP_START, self.name, step=step)
 
             # 先调 Function Calling 看有没有工具调用
@@ -334,6 +340,13 @@ class ClawCoreAgent(Agent):
             })
 
             for tc in tool_calls:
+                # 单步超时检查（30秒）
+                elapsed = (datetime.now() - step_start).total_seconds()
+                if elapsed > 30:
+                    yield StreamEvent.create(StreamEventType.LLM_CHUNK, self.name,
+                        chunk=f"\n[!] 步骤超时({elapsed:.0f}s), 跳过剩余工具\n")
+                    break
+
                 try:
                     arguments = json.loads(tc.arguments)
                 except json.JSONDecodeError:

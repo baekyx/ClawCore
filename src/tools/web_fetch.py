@@ -50,7 +50,7 @@ class WebFetchTool(Tool):
                 try:
                     from bs4 import BeautifulSoup
                     soup = BeautifulSoup(html, 'html.parser')
-                    for tag in soup(['script', 'style', 'nav', 'footer', 'header', 'aside']):
+                    for tag in soup(['script', 'style', 'nav', 'footer', 'header', 'aside', 'noscript']):
                         tag.decompose()
                     text = soup.get_text(separator='\n', strip=True)
                 except ImportError:
@@ -62,12 +62,26 @@ class WebFetchTool(Tool):
                 lines = [l.strip() for l in text.split('\n') if l.strip()]
                 text = '\n'.join(lines)
 
+                # 内容质量检测
+                html_len = len(html)
+                text_len = len(text)
+                quality = text_len / max(html_len, 1)
+
+                if quality < 0.05 or text_len < 200:
+                    # 动态页面/JS渲染页面 → 告知Agent换策略
+                    return ToolResponse.partial(
+                        text=f"WARNING: {url} 是动态渲染页面，无法提取有效内容 (文本{text_len}字符, 质量{quality:.1%})。"
+                             f"建议: 1) 搜索时加 'RSS' 关键词 2) 换用静态新闻源如 news.ycombinator.com 或 Google News",
+                        data={"url": url, "dynamic": True, "quality": quality,
+                              "text_length": text_len, "status": resp.status_code}
+                    )
+
                 if len(text) > max_chars:
                     text = text[:max_chars] + f"\n\n... (已截断，原文 {len(lines)} 行)"
 
                 return ToolResponse.success(
                     text=f"{url}\n\n{text[:3000]}",
-                    data={"url": url, "content": text, "status": resp.status_code}
+                    data={"url": url, "content": text, "quality": quality, "status": resp.status_code}
                 )
 
             except httpx.HTTPStatusError as e:
