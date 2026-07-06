@@ -65,7 +65,8 @@ class SessionMemory:
 
     def create_session(self, title: str = "") -> str:
         """创建新会话，返回 session_id"""
-        sid = f"s-{datetime.now().strftime('%Y%m%d-%H%M%S')}-{id(self):04x}"
+        import uuid
+        sid = f"s-{datetime.now().strftime('%Y%m%d-%H%M%S')}-{uuid.uuid4().hex[:6]}"
         now = datetime.now().isoformat()
         with self._get_conn() as conn:
             conn.execute(
