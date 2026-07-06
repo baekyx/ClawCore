@@ -9,7 +9,7 @@
 
 from typing import List, Dict, Optional
 
-from config.settings import MyClawConfig, get_config
+from config.settings import ClawCoreConfig, get_config
 from .session_memory import SessionMemory, SessionMessage
 from .working_memory import WorkingMemory, WorkingMemoryItem
 from .long_term_memory import LongTermMemory
@@ -18,7 +18,7 @@ from .long_term_memory import LongTermMemory
 class MemoryManager:
     """统一记忆管理入口"""
 
-    def __init__(self, config: MyClawConfig = None):
+    def __init__(self, config: ClawCoreConfig = None):
         self.config = config or get_config()
 
         # Layer 1: 会话态

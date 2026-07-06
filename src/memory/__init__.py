@@ -1,4 +1,4 @@
-"""MyClaw 多层记忆系统"""
+"""ClawCore 多层记忆系统"""
 
 from .session_memory import SessionMemory, SessionMessage
 from .working_memory import WorkingMemory, WorkingMemoryItem

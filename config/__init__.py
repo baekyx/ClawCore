@@ -1,3 +1,3 @@
-from .settings import MyClawConfig, get_config
+from .settings import ClawCoreConfig, get_config
 
-__all__ = ["MyClawConfig", "get_config"]
+__all__ = ["ClawCoreConfig", "get_config"]

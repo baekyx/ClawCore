@@ -1,5 +1,5 @@
 [project]
-name = "myclaw"
+name = "clawcore"
 version = "0.1.0"
 description = "基于多层记忆与 Skill 自进化的通用 Agent 助手"
 requires-python = ">=3.10"
@@ -23,7 +23,7 @@ dependencies = [
 ]
 
 [project.scripts]
-myclaw = "src.cli:app"
+clawcore = "src.cli:app"
 
 [build-system]
 requires = ["setuptools>=68.0"]

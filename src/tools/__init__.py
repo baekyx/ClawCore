@@ -1,4 +1,4 @@
-"""MyClaw 工具系统 — 9 个核心工具"""
+"""ClawCore 工具系统 — 9 个核心工具"""
 import sys
 from pathlib import Path
 

@@ -10,7 +10,7 @@ if str(PROJECT_ROOT) not in sys.path:
 import typer
 from rich.console import Console
 
-from src.agent_loop.react_loop import MyClawAgent
+from src.agent_loop.react_loop import ClawCoreAgent
 from src.tools import create_default_registry
 from src.llm import create_llm
 from src.memory import MemoryManager
@@ -51,7 +51,7 @@ def chat(
 
     # 创建 Agent
     registry = create_default_registry(skill_manager=skill, memory_manager=memory)
-    agent = MyClawAgent(
+    agent = ClawCoreAgent(
         name="ClawCore",
         llm=llm,
         config=config,
@@ -71,7 +71,7 @@ def chat(
         console.print("[yellow]请使用 -q 提问或 -i 进入交互模式[/yellow]")
 
 
-def _run_single(agent: MyClawAgent, query: str):
+def _run_single(agent: ClawCoreAgent, query: str):
     try:
         result = agent.run(query)
         console.print()
@@ -83,7 +83,7 @@ def _run_single(agent: MyClawAgent, query: str):
         console.print(f"\n[red]错误: {e}[/red]")
 
 
-def _run_interactive(agent: MyClawAgent):
+def _run_interactive(agent: ClawCoreAgent):
     console.print("\n[bold]输入 /exit 退出, /clear 清空历史[/bold]\n")
 
     while True:

@@ -1,4 +1,4 @@
-"""MyClaw 统一配置管理 — 参考 FinFlow dataclass 风格 + HelloAgents Config 体系"""
+"""ClawCore 统一配置管理 — 参考 FinFlow dataclass 风格 + HelloAgents Config 体系"""
 
 import os
 from dataclasses import dataclass, field
@@ -23,7 +23,7 @@ class PostgresConfig:
     """Postgres 配置 — 工作记忆(Layer2) + 长期记忆(Layer3 pgvector)"""
     host: str = "localhost"
     port: int = 5432
-    database: str = "myclaw"
+    database: str = "clawcore"
     user: str = "postgres"
     password: str = ""
     # pgvector 扩展
@@ -71,8 +71,8 @@ class SkillConfig:
 
 
 @dataclass
-class MyClawConfig:
-    """MyClaw 全局配置 — 单例模式"""
+class ClawCoreConfig:
+    """ClawCore 全局配置 — 单例模式"""
     llm: LLMConfig = field(default_factory=LLMConfig)
     postgres: PostgresConfig = field(default_factory=PostgresConfig)
     embedding: EmbeddingConfig = field(default_factory=EmbeddingConfig)
@@ -82,15 +82,15 @@ class MyClawConfig:
     debug: bool = False
 
 
-_config: Optional[MyClawConfig] = None
+_config: Optional[ClawCoreConfig] = None
 
 
-def get_config() -> MyClawConfig:
+def get_config() -> ClawCoreConfig:
     """获取全局配置单例，首次调用时从环境变量加载"""
     global _config
     if _config is None:
         load_dotenv()
-        _config = MyClawConfig(
+        _config = ClawCoreConfig(
             llm=LLMConfig(
                 model=os.getenv("LLM_MODEL_ID", "deepseek-chat"),
                 api_key=os.getenv("LLM_API_KEY", ""),
@@ -99,7 +99,7 @@ def get_config() -> MyClawConfig:
             postgres=PostgresConfig(
                 host=os.getenv("PG_HOST", "localhost"),
                 port=int(os.getenv("PG_PORT", "5432")),
-                database=os.getenv("PG_DATABASE", "myclaw"),
+                database=os.getenv("PG_DATABASE", "clawcore"),
                 user=os.getenv("PG_USER", "postgres"),
                 password=os.getenv("PG_PASSWORD", ""),
             ),

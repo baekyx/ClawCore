@@ -1,4 +1,4 @@
-"""MyClaw Skill 自进化系统"""
+"""ClawCore Skill 自进化系统"""
 
 from .skill_manager import SkillManager, SkillInfo, SkillFull
 from .skill_extractor import SkillExtractor, SkillPattern

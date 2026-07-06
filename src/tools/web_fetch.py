@@ -34,7 +34,7 @@ class WebFetchTool(Tool):
         try:
             with httpx.Client(timeout=15, follow_redirects=True) as client:
                 resp = client.get(url, headers={
-                    "User-Agent": "Mozilla/5.0 (compatible; MyClaw/1.0)"
+                    "User-Agent": "Mozilla/5.0 (compatible; ClawCore/1.0)"
                 })
                 resp.raise_for_status()
 

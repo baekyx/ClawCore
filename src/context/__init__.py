@@ -1,4 +1,4 @@
-"""MyClaw 上下文压缩系统"""
+"""ClawCore 上下文压缩系统"""
 
 from .context_pipeline import ContextPipeline
 from .budget_truncator import BudgetTruncator

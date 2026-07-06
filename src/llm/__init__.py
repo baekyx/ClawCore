@@ -1,4 +1,4 @@
-"""MyClaw LLM 适配层 — 直接包装 HelloAgents 的 HelloAgentsLLM"""
+"""ClawCore LLM 适配层 — 直接包装 HelloAgents 的 HelloAgentsLLM"""
 
 import sys
 from pathlib import Path
@@ -12,10 +12,10 @@ from hello_agents.core.llm import HelloAgentsLLM
 from hello_agents.core.llm_response import LLMResponse, LLMToolResponse, ToolCall, StreamStats
 from hello_agents.core.config import Config as HelloAgentsConfig
 
-from config.settings import MyClawConfig, get_config
+from config.settings import ClawCoreConfig, get_config
 
 
-def create_llm(config: MyClawConfig = None) -> HelloAgentsLLM:
+def create_llm(config: ClawCoreConfig = None) -> HelloAgentsLLM:
     """创建 LLM 实例，自动从环境变量读取配置"""
     if config is None:
         config = get_config()
