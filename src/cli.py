@@ -25,6 +25,7 @@ console = Console()
 def chat(
     query: str = typer.Option(None, "--query", "-q", help="单次问答"),
     interactive: bool = typer.Option(False, "--interactive", "-i", help="交互式多轮对话"),
+    stream: bool = typer.Option(False, "--stream", "-s", help="流式输出"),
     model: str = typer.Option(None, "--model", "-m", help="指定模型"),
 ):
     """ClawCore 智能对话"""
@@ -66,7 +67,10 @@ def chat(
     if interactive:
         _run_interactive(agent)
     elif query:
-        _run_single(agent, query)
+        if stream:
+            _run_single_stream(agent, query)
+        else:
+            _run_single(agent, query)
     else:
         console.print("[yellow]请使用 -q 提问或 -i 进入交互模式[/yellow]")
 
@@ -81,6 +85,24 @@ def _run_single(agent: ClawCoreAgent, query: str):
         console.print("\n[yellow]用户中断[/yellow]")
     except Exception as e:
         console.print(f"\n[red]错误: {e}[/red]")
+
+
+def _run_single_stream(agent: ClawCoreAgent, query: str):
+    """单次流式问答"""
+    try:
+        for event in agent.run_stream(query):
+            if event.type.value == "llm_chunk":
+                print(event.data.get("chunk", ""), end="", flush=True)
+            elif event.type.value == "tool_call_finish":
+                tn = event.data.get("tool_name", "")
+                print(f"\n[>> {tn}]", end="", flush=True)
+            elif event.type.value == "error":
+                print(f"\n[ERR] {event.data.get('error', '')}")
+        print()
+    except KeyboardInterrupt:
+        print("\n[yellow]中断[/yellow]")
+    except Exception as e:
+        print(f"\n[ERR] {e}")
 
 
 def _run_interactive(agent: ClawCoreAgent):

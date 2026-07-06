@@ -29,6 +29,7 @@ if str(HELLO_AGENTS_PATH) not in sys.path:
 from hello_agents.core.agent import Agent
 from hello_agents.core.llm import HelloAgentsLLM
 from hello_agents.core.message import Message
+from hello_agents.core.streaming import StreamEvent, StreamEventType
 from hello_agents.tools.registry import ToolRegistry
 from hello_agents.tools.response import ToolStatus
 
@@ -270,6 +271,95 @@ class ClawCoreAgent(Agent):
         print(f"{'='*60}")
 
         return final_answer
+
+    def run_stream(self, input_text: str, **kwargs):
+        """
+        流式执行 Agent — 实时输出 LLM 文本块 + 工具调用事件
+
+        Yields:
+            StreamEvent: stream events (AGENT_START, LLM_CHUNK, TOOL_CALL_FINISH, AGENT_FINISH)
+        """
+        yield StreamEvent.create(StreamEventType.AGENT_START, self.name, input_text=input_text)
+
+        # Phase 2: memory retrieval
+        memory_context = ""
+        if self.memory_manager:
+            memory_context = self.memory_manager.retrieve(input_text)
+
+        # Phase 4: skill matching
+        skills_prompt = ""
+        if self.skill_manager and self.skill_manager.list_skills():
+            skills_prompt = self.skill_manager.get_skills_prompt(input_text)
+
+        messages = self._build_messages(input_text, memory_context, skills_prompt)
+        tool_schemas = self._build_tool_schemas()
+        step = 0
+        final_answer = ""
+
+        while step < self.max_steps:
+            step += 1
+            yield StreamEvent.create(StreamEventType.STEP_START, self.name, step=step)
+
+            # 先调 Function Calling 看有没有工具调用
+            try:
+                response = self.llm.invoke_with_tools(messages, tools=tool_schemas, tool_choice="auto", **kwargs)
+            except Exception as e:
+                final_answer = f"LLM 调用失败: {e}"
+                yield StreamEvent.create(StreamEventType.ERROR, self.name, error=str(e))
+                break
+
+            tool_calls = response.tool_calls
+            if not tool_calls:
+                # 无工具调用 → 流式输出完整回答
+                full_text = ""
+                try:
+                    for chunk in self.llm.stream_invoke(messages, **kwargs):
+                        full_text += chunk
+                        yield StreamEvent.create(StreamEventType.LLM_CHUNK, self.name, chunk=chunk)
+                except Exception:
+                    full_text = response.content or "无法回答"
+                    yield StreamEvent.create(StreamEventType.LLM_CHUNK, self.name, chunk=full_text)
+
+                final_answer = full_text
+                break
+
+            # 有工具调用 → 执行工具
+            messages.append({
+                "role": "assistant", "content": response.content,
+                "tool_calls": [{"id": tc.id, "type": "function",
+                    "function": {"name": tc.name, "arguments": tc.arguments}} for tc in tool_calls]
+            })
+
+            for tc in tool_calls:
+                try:
+                    arguments = json.loads(tc.arguments)
+                except json.JSONDecodeError:
+                    continue
+
+                try:
+                    result = self._execute_tool_call(tc.name, arguments)
+                except Exception as e:
+                    result = f"[ERR] {e}"
+
+                yield StreamEvent.create(StreamEventType.TOOL_CALL_FINISH, self.name,
+                    tool_name=tc.name, result=_safe(result[:200]))
+
+                messages.append({"role": "tool", "tool_call_id": tc.id, "content": result})
+
+            # 压缩检查
+            if self.context_pipeline and self.context_pipeline.should_compress(messages):
+                messages = self.context_pipeline.compress(messages)
+
+        if step >= self.max_steps and not final_answer:
+            final_answer = "无法在限定步数内完成"
+
+        self.add_message(Message(input_text, "user"))
+        self.add_message(Message(final_answer, "assistant"))
+        if self.memory_manager:
+            self.memory_manager.remember_session_message("user", input_text)
+            self.memory_manager.remember_session_message("assistant", final_answer)
+
+        yield StreamEvent.create(StreamEventType.AGENT_FINISH, self.name, result=final_answer)
 
     def _build_messages(self, input_text: str, memory_context: str = "",
                         skills_prompt: str = "") -> List[Dict[str, str]]:
