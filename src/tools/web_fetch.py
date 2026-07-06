@@ -38,9 +38,9 @@ class WebFetchTool(Tool):
             "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
         }
 
-        for attempt in range(3):
+        for attempt in range(2):  # 最多重试1次
             try:
-                with httpx.Client(timeout=15, follow_redirects=True, headers=headers) as client:
+                with httpx.Client(timeout=8, follow_redirects=True, headers=headers) as client:
                     resp = client.get(url)
                     resp.raise_for_status()
 
