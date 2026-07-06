@@ -58,30 +58,41 @@ class ContextPipeline:
         return estimated_tokens > self.config.context_window * params.threshold
 
     def compress(self, messages: List[Dict]) -> List[Dict]:
-        """执行四层压缩流水线"""
-        params = self.auto.adjust(messages)
+        """执行四层压缩流水线，每层异常时降级到下一层"""
+        try:
+            params = self.auto.adjust(messages)
+        except Exception:
+            params = None
+
         original_count = len(messages)
 
         # Layer 1: Budget 截断
-        if self.budget.needs_truncation(messages):
-            messages = self.budget.truncate(messages)
-            self.stats["l1_truncations"] += 1
+        try:
+            if self.budget.needs_truncation(messages):
+                messages = self.budget.truncate(messages)
+                self.stats["l1_truncations"] += 1
+        except Exception as e:
+            print(f"[ContextPipeline] L1 截断失败,降级跳过: {e}")
 
         # Layer 2: 冗余裁剪
-        pre_prune = len(messages)
-        messages = self.redundancy.prune(messages)
-        if len(messages) < pre_prune:
-            self.stats["l2_pruned"] += 1
+        try:
+            pre_prune = len(messages)
+            messages = self.redundancy.prune(messages)
+            if len(messages) < pre_prune:
+                self.stats["l2_pruned"] += 1
+        except Exception as e:
+            print(f"[ContextPipeline] L2 裁剪失败,降级跳过: {e}")
 
         # Layer 3: 结构化精缩
-        total_chars = sum(len(m.get("content", "")) for m in messages)
-        estimated_tokens = total_chars // 4
-
-        if self.structural.needs_compression(messages, estimated_tokens):
-            messages = self.structural.compress(
-                messages, keep_recent_rounds=params.keep_recent_rounds
-            )
-            self.stats["l3_compressions"] += 1
+        try:
+            total_chars = sum(len(m.get("content", "")) for m in messages)
+            estimated_tokens = total_chars // 4
+            kr = params.keep_recent_rounds if params else 5
+            if self.structural.needs_compression(messages, estimated_tokens):
+                messages = self.structural.compress(messages, keep_recent_rounds=kr)
+                self.stats["l3_compressions"] += 1
+        except Exception as e:
+            print(f"[ContextPipeline] L3 摘要失败,降级跳过: {e}")
 
         self.stats["total_rounds"] += 1
 

@@ -41,18 +41,30 @@ class LongTermMemory:
     def _cursor(self):
         if not HAS_PG:
             raise RuntimeError("psycopg2 未安装")
-        if self._conn is None or self._conn.closed:
-            self._conn = psycopg2.connect(
-                host=self.pg_config.host, port=self.pg_config.port,
-                database=self.pg_config.database,
-                user=self.pg_config.user, password=self.pg_config.password
-            )
-        cur = self._conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-        try:
-            yield cur
-            self._conn.commit()
-        finally:
-            cur.close()
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                if self._conn is None or self._conn.closed:
+                    self._conn = psycopg2.connect(
+                        host=self.pg_config.host, port=self.pg_config.port,
+                        database=self.pg_config.database,
+                        user=self.pg_config.user, password=self.pg_config.password
+                    )
+                cur = self._conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+                try:
+                    yield cur
+                    self._conn.commit()
+                    return
+                finally:
+                    cur.close()
+            except (psycopg2.OperationalError, psycopg2.InterfaceError) as e:
+                if self._conn:
+                    self._conn.close()
+                self._conn = None
+                if attempt == max_retries - 1:
+                    raise RuntimeError(f"PG 重连失败(已重试{max_retries}次): {e}") from e
+                import time
+                time.sleep(1.0 * (attempt + 1))  # 递增等待: 1s, 2s, 3s
 
     def _init_db(self):
         with self._cursor() as cur:

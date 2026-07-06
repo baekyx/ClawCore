@@ -186,7 +186,12 @@ class ClawCoreAgent(Agent):
                     **kwargs,
                 )
             except Exception as e:
-                print(f"[ERR] LLM 调用失败: {e}")
+                final_answer = f"LLM 调用失败: {e}，请稍后重试"
+                print(f"[ERR] {final_answer}")
+                if self.trace_logger:
+                    self.trace_logger.log_event("error", {
+                        "error_type": type(e).__name__, "message": str(e)
+                    }, step=current_step)
                 break
 
             # 没有工具调用 → 返回答案
@@ -218,28 +223,29 @@ class ClawCoreAgent(Agent):
                 try:
                     arguments = json.loads(tool_call.arguments)
                 except json.JSONDecodeError as e:
-                    messages.append({
-                        "role": "tool",
-                        "tool_call_id": tool_call_id,
-                        "content": f"错误：参数格式不正确 - {e}",
-                    })
+                    err_msg = f"[ERR] 参数格式不正确: {e}"
+                    messages.append({"role": "tool", "tool_call_id": tool_call_id, "content": err_msg})
+                    print(f"  {err_msg}")
                     continue
 
-                print(f">> {tool_name}({arguments})")
+                print(f">> {tool_name}({_safe(str(arguments))[:80]})")
 
-                result = self._execute_tool_call(tool_name, arguments)
+                try:
+                    result = self._execute_tool_call(tool_name, arguments)
+                except Exception as e:
+                    result = f"[ERR] 工具执行异常: {e}"
+                    if self.trace_logger:
+                        self.trace_logger.log_event("tool_error", {
+                            "tool_name": tool_name, "error": str(e)
+                        }, step=current_step)
 
                 if result.startswith("[ERR]"):
-                    print(f"  {result}")
+                    print(f"  {_safe(result[:120])}")
                 else:
                     preview = _safe(result[:150]).replace('\n', ' ')
                     print(f"  => {preview}...")
 
-                messages.append({
-                    "role": "tool",
-                    "tool_call_id": tool_call_id,
-                    "content": result,
-                })
+                messages.append({"role": "tool", "tool_call_id": tool_call_id, "content": result})
 
             # Phase 3: 上下文压缩决策
             if self.context_pipeline and self.context_pipeline.should_compress(messages):
