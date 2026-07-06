@@ -235,16 +235,17 @@ def run_e2e_benchmark(agent):
             by_tier[tier]["correct"] += 1
 
         status = "PASS" if passed else "FAIL"
-        print(f"  [{status}] T{t['tier']:>4s} {t['category']:>8s} | "
-              f"{t['query'][:45]:>45s} | {result[:50]}...")
+        tier_str = str(t['tier'])
+        print(f"  [{status}] T{tier_str:<4s} {t['category']:<8s} | "
+              f"{t['query'][:45]:<45s} | {result[:50]}...")
 
     # 按难度统计
-    print(f"\n  {'Tier':<8s} {'Category':<12s} {'准确率'}")
+    print(f"\n  {'Tier':<8s} {'Category':<12s} {'Accuracy'}")
     print(f"  {'-'*35}")
-    for tier in sorted(by_tier.keys()):
+    for tier in sorted(by_tier.keys(), key=lambda x: (x.isdigit(), x)):
         d = by_tier[tier]
         pct = d["correct"] / d["total"] * 100
-        tier_name = {"1":"基础","2":"工具","3":"记忆","4":"推理","5":"综合","edge":"容错"}.get(tier, tier)
+        tier_name = {"1":"Basic","2":"Tool","3":"Memory","4":"Reason","5":"Complex","edge":"Edge"}.get(tier, tier)
         print(f"  T{tier:<7s} {tier_name:<12s} {d['correct']}/{d['total']} ({pct:.0f}%)")
 
     acc = correct / total * 100
