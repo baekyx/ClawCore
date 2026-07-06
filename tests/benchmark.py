@@ -44,37 +44,52 @@ TEST_MEMORIES = [
     {"content": "上次团建去了古北水镇，大家反馈很好", "type": "social"},
 ]
 
-# 测试查询 + 正确答案 ID（人工标注）
+# 测试查询 + 正确答案关键词（内容匹配，不依赖PG自增ID）
 TEST_QUERIES = [
-    {"query": "用户的父亲有什么健康问题？", "relevant_ids": [4]},
-    {"query": "用户住在哪里？", "relevant_ids": [0, 14]},
-    {"query": "用户喜欢喝什么？", "relevant_ids": [8]},
-    {"query": "上次故障是什么原因？", "relevant_ids": [9]},
-    {"query": "用户的开发工具偏好？", "relevant_ids": [1, 12]},
-    {"query": "公司的业务增长情况？", "relevant_ids": [5, 17]},
-    {"query": "用户的家庭情况？", "relevant_ids": [4, 10, 16]},
-    {"query": "用户的旅游计划？", "relevant_ids": [6]},
-    {"query": "重要技术决策有哪些？", "relevant_ids": [3, 7]},
-    {"query": "用户不喜欢什么？", "relevant_ids": [1, 18]},
+    {"query": "用户的父亲有什么健康问题？", "keywords": ["父亲", "高血压"]},
+    {"query": "用户住在哪里？", "keywords": ["朝阳区", "望京"]},
+    {"query": "用户喜欢喝什么？", "keywords": ["咖啡", "耶加雪菲"]},
+    {"query": "上次故障是什么原因？", "keywords": ["Redis", "内存溢出"]},
+    {"query": "用户的开发工具偏好？", "keywords": ["VS Code", "JetBrains"]},
+    {"query": "公司的业务增长情况？", "keywords": ["营收", "QPS"]},
+    {"query": "用户的家庭情况？", "keywords": ["父亲", "孩子", "医生"]},
+    {"query": "用户的旅游计划？", "keywords": ["日本", "旅游"]},
+    {"query": "重要技术决策有哪些？", "keywords": ["PostgreSQL", "微服务"]},
+    {"query": "用户不喜欢什么？", "keywords": ["不喜欢", "素食"]},
 ]
 
 
 def load_test_data(ltm):
-    """加载测试语料到 L3"""
-    ltm.add_batch(TEST_MEMORIES)
-    print(f"  Loaded {ltm.count()} memories")
+    """加载测试语料到 L3，返回每条记忆的实际 PG ID"""
+    # 重置自增 ID
+    with ltm._cursor() as cur:
+        cur.execute("ALTER SEQUENCE long_term_memories_id_seq RESTART WITH 1")
+    ltm._bm25_texts = []
+    ltm._bm25_metadata = []
+    ltm._bm25 = None
+
+    ids = ltm.add_batch(TEST_MEMORIES)
+    print(f"  Loaded {len(ids)} memories (IDs: {ids[0]}-{ids[-1]})")
+    return ids
 
 
-def hit_rate_at_k(results, relevant_ids, k):
-    """HitRate@K: 前K个结果中至少有一个相关的比例"""
-    top_k_ids = {r["id"] for r in results[:k]}
-    return 1 if top_k_ids & set(relevant_ids) else 0
+def is_relevant(content, keywords):
+    """内容匹配：至少命中一个关键词"""
+    return any(kw in content for kw in keywords)
 
 
-def reciprocal_rank(results, relevant_ids):
+def hit_rate_at_k(results, keywords, k):
+    """HitRate@K: 前K个结果中至少有一个相关"""
+    for r in results[:k]:
+        if is_relevant(r["content"], keywords):
+            return 1
+    return 0
+
+
+def reciprocal_rank(results, keywords):
     """MRR: 第一个相关结果的倒数排名"""
     for rank, r in enumerate(results, 1):
-        if r["id"] in relevant_ids:
+        if is_relevant(r["content"], keywords):
             return 1.0 / rank
     return 0.0
 
@@ -86,16 +101,16 @@ def run_retrieval_benchmark(ltm):
     for q in TEST_QUERIES:
         retrieved = ltm.hybrid_search(q["query"], top_k=10)
 
-        results["hitrate@1"].append(hit_rate_at_k(retrieved, q["relevant_ids"], 1))
-        results["hitrate@3"].append(hit_rate_at_k(retrieved, q["relevant_ids"], 3))
-        results["hitrate@5"].append(hit_rate_at_k(retrieved, q["relevant_ids"], 5))
-        results["hitrate@10"].append(hit_rate_at_k(retrieved, q["relevant_ids"], 10))
-        results["mrr"].append(reciprocal_rank(retrieved, q["relevant_ids"]))
+        results["hitrate@1"].append(hit_rate_at_k(retrieved, q["keywords"], 1))
+        results["hitrate@3"].append(hit_rate_at_k(retrieved, q["keywords"], 3))
+        results["hitrate@5"].append(hit_rate_at_k(retrieved, q["keywords"], 5))
+        results["hitrate@10"].append(hit_rate_at_k(retrieved, q["keywords"], 10))
+        results["mrr"].append(reciprocal_rank(retrieved, q["keywords"]))
 
     # Debug: 单条查询详情
     sample = TEST_QUERIES[0]
     sample_results = ltm.hybrid_search(sample["query"], top_k=5)
-    print(f"\n  Debug: '{sample['query']}' → expect IDs {sample['relevant_ids']}")
+    print(f"\n  Debug: '{sample['query']}' → expect keywords {sample['keywords']}")
     for r in sample_results:
         print(f"    id={r['id']} score={r['score']:.3f} type={r['type']} content={r['content'][:50]}...")
 
