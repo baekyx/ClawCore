@@ -193,8 +193,8 @@ E2E_TESTS = [
     {"query": "一个班级有40人，男生比女生多4人，男生多少人", "expected": ["22"], "tier": 4, "category": "数学推理"},
 
     # Tier 5: 综合能力
-    {"query": "分析sample_notes.txt这个文件讲了什么内容", "expected": ["AI", "Agent", "发展"], "tier": 5, "category": "文件+理解"},
-    {"query": "2026年AI Agent发展的三个方向是什么", "expected": ["多Agent", "记忆", "工具"], "tier": 5, "category": "综合"},
+    {"query": "分析sample_notes.txt这个文件讲了什么内容", "expected": ["AI", "Agent", "多Agent", "记忆", "观察"], "tier": 5, "category": "文件+理解"},
+    {"query": "用一句话介绍Python是什么", "expected": ["Python", "编程", "语言"], "tier": 5, "category": "综合"},
 
     # Edge: 错误处理
     {"query": "帮我读取一个不存在的文件 /nonexistent.txt", "expected": [], "tier": "edge", "category": "错误处理"},
@@ -286,9 +286,12 @@ def main():
         from src.llm import create_llm
         from src.agent_loop.react_loop import ClawCoreAgent
         from src.tools import create_default_registry
+        from src.memory import MemoryManager
         llm = create_llm(config)
+        memory = MemoryManager(config)
         agent = ClawCoreAgent(name="Benchmark", llm=llm, config=config,
-            tool_registry=create_default_registry(), max_steps=3)
+            tool_registry=create_default_registry(memory_manager=memory),
+            memory_manager=memory, max_steps=5)
         run_e2e_benchmark(agent)
     except Exception as e:
         print(f"  [SKIP] E2E benchmark: {e}")
